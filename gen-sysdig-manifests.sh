@@ -12,6 +12,7 @@
 #
 # Date: November 2th, 2022
 # Updated: February 14th, 2023
+# Updated: August 9th, 2024 - to support cluster shield
 #
 #===========================================================
 
@@ -156,78 +157,33 @@ fi
 #
 # Parse the helm output into individual files
 #
-echo "STATUS: Parsing helm template output file"
+echo "STATUS: Parsing the helm template ouput into individual manifest files"
 input=${TEMPLATE_FILE}
-found_seperator="false"
-found_manifest_name="false"
-manifest_name_list=()
-
-item_in_array() {
-    local item_to_find=$1
-    shift
-    local array=("$@")
-
-    local found=false
-
-    for element in "${array[@]}"; do
-        if [ "$element" = "$item_to_find" ]; then
-            found=true
-            break
-        fi
-    done
-
-    # Return 0 if found, 1 if not found
-    if [ "$found" = true ]; then
-        return 0  # Found
-    else
-        return 1  # Not found
-    fi
-}
-
-added_lines="false"
+manifest_name=""
 
 while IFS= read -r line
 do
-  if [ "$found_manifest_name" = "true" ] && [ "$line" != "---" ] && [ "$duplicate_manifest" = "false" ]; then 
-    echo "$line" >> $manifest_name
-  fi
-  if [ "$found_manifest_name" = "true" ] && [ "$line" != "---" ] && [ "$duplicate_manifest" = "true" ] && [ "$added_lines" = "false" ]; then 
-    echo "---" >> $manifest_name
-    echo "$line" >> $manifest_name
-    duplicate_manifest="false"
-    added_lines="true"
-  fi
-  if [ "$found_seperator" = "true" ]; then
-    if [ "$line" = "---" ]; then 
-      continue
-    fi
+
+  if [[ $line == "# Source:"* ]]; then 
+
+    #echo "Found manifest helm template source: $line"
+
+    # Parse and create destination manifest file name
     manifest_name="${line#*/}"
     manifest_name="${manifest_name#charts\/}"
     manifest_name="${manifest_name//templates\//}"
     manifest_name="${manifest_name//\//-}"
-    
-    item_in_array "$manifest_name" "${manifest_name_list[@]}"
 
-    # Check the return value of the function
-    if [ $? -eq 0 ]; then
-        echo "Item '$manifest_name' found in the array."
-        duplicate_manifest="true"
-        added_lines="false"
-        found_seperator="false"
-        found_manifest_name="true"
-        continue
-    fi
+    #echo "Writing to manifest_name: $manifest_name"
 
-    manifest_name_list+=($manifest_name)
-
-    duplicate_manifest="false"
-    found_seperator="false"
-    found_manifest_name="true"
   fi
-  if [ "$line" = "---" ]; then 
-    found_seperator="true"
-    found_manifest_name="false"
+
+  if [ "$manifest_name" != "" ]; then
+    echo "$line" >> $manifest_name
+  # else
+    # echo "Skipping line: $line"
   fi
+
 done < $input
 
 rm ${TEMPLATE_FILE}
@@ -247,6 +203,7 @@ mv agent-daemonset.yaml ${prefix}sa-ds.yaml 2> /dev/null
 mv agent-psp.yaml ${prefix}sa-psp.yaml 2> /dev/null
 mv agent-secrets.yaml ${prefix}sa-se.yaml 2> /dev/null
 mv agent-serviceaccount.yaml ${prefix}sa-sa.yaml 2> /dev/null
+mv agent-service.yaml ${prefix}sa-sv.yaml 2> /dev/null
 mv nodeAnalyzer-clusterrole-node-analyzer.yaml ${prefix}sana-cr.yaml 2> /dev/null
 mv nodeAnalyzer-clusterrolebinding-node-analyzer.yaml ${prefix}sana-crb.yaml 2> /dev/null
 mv nodeAnalyzer-daemonset-node-analyzer.yaml ${prefix}sana-ds.yaml 2> /dev/null
@@ -271,6 +228,17 @@ mv kspmCollector-configmap.yaml sa-kspm-cm.yaml 2> /dev/null
 mv kspmCollector-deployment.yaml sa-kspm-de.yaml 2> /dev/null
 mv kspmCollector-secret.yaml sa-kspm-se.yaml 2> /dev/null
 mv kspmCollector-serviceaccount.yaml sa-kspm-sa.yaml 2> /dev/null
+mv clusterShield-clusterrole.yaml cs-cr.yaml 2> /dev/null
+mv clusterShield-clusterrolebinding.yaml cs-crb.yaml 2> /dev/null
+mv clusterShield-configmap.yaml cs-cm.yaml 2> /dev/null
+mv clusterShield-deployment.yaml cs-de.yaml 2> /dev/null
+mv clusterShield-role.yaml cs-r.yaml 2> /dev/null
+mv clusterShield-rolebinding.yaml cs-rb.yaml 2> /dev/null
+mv clusterShield-secrets.yaml cs-se.yaml 2> /dev/null
+mv clusterShield-service-cluster-scanner.yaml cs-sv-cs.yaml 2> /dev/null
+mv clusterShield-service.yaml cs-sv.yaml 2> /dev/null
+mv clusterShield-serviceaccount.yaml cs-sa.yaml 2> /dev/null
+mv clusterShield-validatingwebhookconfiguration.yaml cs-wh.yaml 2> /dev/null
 #
 # Done
 #
